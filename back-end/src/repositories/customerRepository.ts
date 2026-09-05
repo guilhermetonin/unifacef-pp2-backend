@@ -35,3 +35,4 @@ export function remove(id: number) {
   return prisma.customer.delete({
     where: { id },
   });
+}
