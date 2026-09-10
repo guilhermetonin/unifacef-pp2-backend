@@ -1,110 +1,152 @@
-================================================================================
-GUIA COMPLETO DAS FERRAMENTAS E CAMADAS DO PROJETO (SIMPLES E DIRETO)
-================================================================================
+# Paradigmas de Programação II 
+## Back-End com Node.js, Express e Prisma
 
---------------------------------------------------------------------------------
-FERRAMENTAS EXTERNAS
---------------------------------------------------------------------------------
-GITHUB CODESPACES
-- O que é: Um computador na nuvem com Linux pronto para programar.
-- O que faz no projeto: Roda o projeto na internet com Node.js ja pronto. Tem 60 horas gratuitas por mes e desliga sozinho se ficar sem uso para economizar tempo.
+> API RESTful para o gerenciamento de clientes e veículos da aplicação **Karangos** (concessionária de veículos antigos), construída sob arquitetura em camadas com separação estrita de responsabilidades e tipagem estática.
 
-NODE.JS
-- O que é: O motor que roda programas em JavaScript/TypeScript fora do navegador.
-- O que faz no projeto: E a base do nosso back-end que mantem o servidor funcionando.
+> O projeto implementa um CRUD completo conectado ao PostgreSQL via Prisma ORM, contemplando validação estrutural com DTOs, histórico de alterações com migrations, tratamento centralizado de erros e conteinerização em nuvem com GitHub Codespaces.
 
-NPM E NPX
-- O que é: Ferramentas do Node para gerenciar e executar pacotes.
-- O que faz no projeto: O npm instala as bibliotecas na pasta node_modules (como Express e Prisma) e o npx roda ferramentas prontas sem precisar instalar antes (como o criador do projeto e as migrations).
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![GitHub Codespaces](https://img.shields.io/badge/GitHub%20Codespaces-181717?style=for-the-badge&logo=github&logoColor=white)
 
-TYPESCRIPT
-- O que é: O JavaScript com checagem obrigatoria de tipos (texto, numero, data).
-- O que faz no projeto: Nao deixa passar dados errados no codigo, avisando os erros no proprio editor antes do programa rodar.
+---
 
-EXPRESS.JS
-- O que é: O framework que cuida da parte web da aplicação.
-- O que faz no projeto: Fica escutando as chamadas na porta 8888 e ajuda a receber pedidos e enviar respostas.
+## Arquitetura da Aplicação
 
- POSTGRESQL (EM NUVEM NO PRISMA)
-- O que é: O sistema de banco de dados onde os registros ficam gravados em tabelas.
-- O que faz no projeto: Guarda definitivamente as informacoes de clientes e veiculos na internet.
+O fluxo de dados segue uma estrutura hierárquica e desacoplada, garantindo que o acesso a dados permaneça isolado das regras de negócio e do protocolo HTTP:
 
---------------------------------------------------------------------------------
-CONFIGURAÇÕES
---------------------------------------------------------------------------------
-ARQUIVO .ENV
-- O que é: Um arquivo de texto que guarda segredos da aplicação.
-- O que faz no projeto: Guarda a DATABASE_URL com a senha do banco PostgreSQL e nunca deve ir para o GitHub.
+```text
+[ Cliente / EchoAPI ]
+         │  ▲
+  (HTTP) │  │ (JSON)
+         ▼  │
+     server.ts  ───►  app.ts
+                        │
+                        ▼
+                     routes        (Mapeia URLs e métodos HTTP)
+                        │
+                        ▼
+                   controllers     (Gerencia req/res, parâmetros e códigos HTTP)
+                        │
+                        ▼
+                    services       (Concentra regras de negócio e validações)
+                        │
+                        ▼
+                  repositories     (Isola o acesso a dados / CRUD)
+                        │
+                        ▼
+                  Prisma Client    (ORM que executa queries no PostgreSQL)
+                        │
+                        ▼
+                [ BD PostgreSQL ]
+```
 
---------------------------------------------------------------------------------
-ARQUITETURA DA APLICAÇÃO
---------------------------------------------------------------------------------
+---
 
-SERVER.TS E APP.TS
-- O que são: Os arquivos que dao a partida no servidor.
-- O que fazem no projeto: O server.ts define a porta 8888 e liga o servidor; o app.ts configura o Express para aceitar requisicoes.
+## Camadas e Responsabilidades
 
-ROUTE (ROTAS)
-- O que é: O mapa de enderecos da aplicação.
-- O que faz no projeto: Diz qual função deve ser chamada quando alguem acessa uma URL usando metodos como GET, POST, PUT ou DELETE.
+| Camada | Arquivos | Responsabilidade Técnica |
+| :--- | :--- | :--- |
+| **Servidor** | `src/bin/server.ts`, `src/app.ts` | Inicializa o servidor Express na porta `8888` e configura middlewares (`morgan`, `cookieParser`, `json`). |
+| **Rotas** | `src/routes/customers.ts` | Declara os endpoints e associa verbos HTTP (`GET`, `POST`, `PUT`, `DELETE`) aos respectivos métodos do controller. |
+| **Controllers** | `src/controllers/customerController.ts` | Recebe a requisição HTTP, extrai `params` e `body`, aciona a camada de serviço e define status HTTP (`201`, `204`, etc.). |
+| **Services** | `src/services/customerService.ts` | Executa a lógica de negócio da aplicação e validações de existência antes de delegações para o repositório. |
+| **Repositories** | `src/repositories/customerRepository.ts` | Camada exclusiva de comunicação com o `PrismaClient` para operações diretas de CRUD (`findMany`, `findUnique`, `create`, `update`, `delete`). |
+| **DTOs** | `src/dto/customer/*.ts` | Interfaces TypeScript (`CreateCustomerDto`, `UpdateCustomerDto`) para tipar e validar contratos de entrada de dados. |
+| **Erros** | `src/errors/*.ts` | Classes customizadas (`AppError`, `NotFoundError`) para padronização de exceções e códigos de erro HTTP. |
 
-MIDDLEWARE
-- O que é: Um porteiro intermediario que age no meio do caminho.
-- O que faz no projeto: Verifica coisas antes da rota entregar o pedido ao controller, como checar se o usuario esta logado ou validar dados basicos.
+---
 
-CONTROLLER (CONTROLADOR)
-- O que é: O atendente da aplicação web.
-- O que faz no projeto: Pega as informacoes que vieram pela internet (dados enviados pelo front-end), repassa para o Service trabalhar e devolve a resposta final com o codigo certo (como 200 de sucesso ou 404 de erro).
+## Modelo de Dados (`Customer`)
 
-SERVICE (SERVICO / REGRAS DE NEGOCIO)
-- O que é: O cerebro das regras do sistema.
-- O que faz no projeto: Aplica as regras da empresa (por exemplo: verificar se um cliente existe antes de atualizar ou apagar). Ele nao sabe nada sobre internet (nao mexe com req ou res) e apenas diz o que deve acontecer.
+Definição mapeada no arquivo `back-end/prisma/schema.prisma`:
 
-REPOSITORY (REPOSITORIO DE DADOS)
-- O que é: O especialista em falar com o banco de dados.
-- O que faz no projeto: E a unica parte do codigo que mexe com o Prisma Client. Ele tem as funções basicas do CRUD: findAll, findById, create, update e remove. Se um dia o banco mudar, so essa camada precisa ser alterada.
+* `id`: Chave primária inteira autoincremental (`@id @default(autoincrement())`).
+* `name`: Nome completo do cliente (`String`).
+* `ident_document`: Documento de identidade com unicidade garantida (`String @unique`).
+* `birth_date`: Data de nascimento opcional (`DateTime? @db.Date`).
+* `street_name`: Logradouro (`String`).
+* `house_number`: Número do endereço (`String`).
+* `complements`: Complemento residencial opcional (`String?`).
+* `district`: Bairro (`String`).
+* `municipality`: Município (`String`).
+* `state`: Sigla da unidade federativa com tamanho fixo (`String @db.Char(2)`).
+* `phone`: Número de contato telefônico (`String`).
+* `email`: Endereço eletrônico com unicidade garantida (`String @unique`).
 
-ERRORS (CENTRAL DE ERROS / NOTFOUNDERROR)
-- O que é: Arquivos que padronizam as mensagens de falha.
-- O que faz no projeto: Permite avisar com clareza quando algo deu errado (como disparar "Customer nao encontrado.") sem quebrar o servidor nem expor codigos internos para o usuario.
+---
 
---------------------------------------------------------------------------------
-DADOS, PRISMA E BANCO DE DADOS
---------------------------------------------------------------------------------
+## Funcionamento Assíncrono (`async`, `await`, `Promise`)
 
-SCHEMA.PRISMA
-- O que é: O arquivo de desenho do banco de dados escrito na linguagem simples do Prisma.
-- O que faz no projeto: Descreve o modelo Customer com seus campos (nome, CPF unico, e-mail unico, endereco, telefone) e tipos de dados.
+O acesso ao PostgreSQL via rede ocorre de forma assíncrona para não bloquear a thread principal do Node.js.
 
-MIGRATIONS
-- O que são: Historicos de alteracoes em SQL criados automaticamente pelo Prisma.
-- O que fazem no projeto: Pegam as mudanças feitas no schema.prisma e aplicam de verdade dentro do PostgreSQL (criando ou alterando tabelas), guardando o historico de tudo o que mudou no banco.
+### Analogia Instrucional da Aplicação
+* **O Service é o Chefe:** Determina a regra e necessita do resultado consolidado.
+* **O Repository é o Office-boy:** Recebe a ordem do chefe e executa o trabalho de busca/gravação.
+* **O Prisma é o Ônibus:** Meio de transporte que viabiliza o trajeto do repositório até o banco.
+* **A Promise é a Execução em Andamento:** O compromisso formal de que o dado retornará.
+* **O `await` é a Espera Ativa:** O chefe aguarda a conclusão da tarefa do office-boy antes de despachar a resposta, sem travar o restante da empresa.
+* **A Promise Resolvida é o Recibo:** O dado retornado pelo banco, pronto para envio ao cliente final.
 
-PRISMA CLIENT
-- O que é: Uma biblioteca gerada sob medida para o nosso projeto.
-- O que faz no projeto: Da funcoes prontas em TypeScript para o Repository usar (como prisma.customer.findMany ou prisma.customer.create), evitando ter que digitar comandos SQL manuais.
+---
 
-PRISMA STUDIO
-- O que é: Um painel visual que abre no navegador parecido com uma planilha.
-- O que faz no projeto: Permite ver as tabelas, checar se as migrations deram certo e adicionar ou ver clientes direto na tela.
+## Configuração e Execução
 
-DTOS (DATA TRANSFER OBJECTS)
-- O que são: Modelos em TypeScript que definem exatamente quais dados podem entrar no sistema.
-- O que fazem no projeto:
-  * createCustomerDto.ts: Exige todos os dados obrigatorios para cadastrar um novo cliente no banco.
-  * updateCustomerDto.ts: Deixa todos os campos com ponto de interrogação (?) para permitir atualizar so o que mudou, sem precisar reenviar tudo.
+### 1. Variáveis de Ambiente
+Crie o arquivo `.env` dentro do diretório `back-end/` utilizando o modelo de `.env.example`:
 
---------------------------------------------------------------------------------
-ASYNC, AWAIT E PROMISE (COMO O SISTEMA ESPERA O BANCO)
---------------------------------------------------------------------------------
+```env
+DATABASE_URL="postgres://USUARIO:SENHA@pooled.db.prisma.io:5432/postgres?sslmode=require"
+```
 
-- Contexto: Como o banco de dados fica na internet, buscar informacoes leva alguns milissegundos. O Node.js nao pode travar o servidor inteiro enquanto espera essa resposta chegar.
-- Promise: A promessa de que o resultado da busca vai chegar no futuro (com os dados ou com um aviso de erro).
-- async / await: Palavras que dizem ao codigo: "espere a resposta do banco chegar antes de ir para a linha de baixo, mas deixe o resto do servidor livre para atender outras pessoas".
+### 2. Comandos Operacionais (Terminal em `back-end`)
 
-- Analogia explicada na apostila:
-  * O Service e o Chefe: Ele decide a regra e manda pagar a conta.
-  * O Repository e o Office-boy: Ele recebe a ordem do chefe e vai fazer o servico de rua.
-  * O Prisma e o Onibus: O transporte que leva o office-boy ate o banco de dados.
-  * A Promise resolvida e o Recibo: O papel com o resultado do banco entregue de volta para o chefe.
-  * O Front-end e o Departamento de Contabilidade: Quem pediu a tarefa e recebe a resposta no final.
+```bash
+# Acessar a pasta do back-end
+cd back-end
+
+# Instalar dependências do projeto
+npm install
+
+# Aplicar migrações ao banco de dados PostgreSQL
+npx prisma migrate dev
+
+# Atualizar os tipos gerados pelo Prisma Client
+npx prisma generate
+
+# Abrir a interface visual Prisma Studio
+npx prisma studio
+
+# Executar a aplicação em modo de desenvolvimento
+npm run dev
+```
+
+---
+
+## Teste de Criação de Cliente (EchoAPI / Postman)
+
+* **Método:** `POST`
+* **URL:** `http://localhost:8888/customers`
+* **Headers:** `Content-Type: application/json`
+* **Body (raw > JSON):**
+
+```json
+{
+  "name": "Maria Silva",
+  "ident_document": "12345678900",
+  "birth_date": "1990-05-20T00:00:00.000Z",
+  "street_name": "Rua das Flores",
+  "house_number": "100",
+  "complements": "Apto. 12",
+  "district": "Centro",
+  "municipality": "Franca",
+  "state": "SP",
+  "phone": "16999999999",
+  "email": "maria@example.com"
+}
+```
+
+* **Retorno Esperado:** Código HTTP `201 Created` contendo o objeto do cliente persistido e o respectivo `id` gerado pelo PostgreSQL.
