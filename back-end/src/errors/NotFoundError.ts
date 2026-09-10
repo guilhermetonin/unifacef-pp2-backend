@@ -1,5 +1,4 @@
-
-import { AppError } from './AppError.js'
+import { AppError } from './AppError.ts'
 
 
 export class NotFoundError extends AppError {
